@@ -1,7 +1,7 @@
 {
   "name": "application-store",
-  "version": "0.0.1",
-  "description": "",
+  "version": "0.0.2",
+  "description": "store with dynamic middleware and reducer",
   "main": "build/application-store.cjs.js",
   "module": "build/application-store.esm.js",
   "browser": "build/application-store.umd.js",
@@ -38,7 +38,7 @@
     "test": "tests"
   },
   "dependencies": {
-    "call-tree": "1.1.1",
+    "call-tree": "1.1.2",
     "dispatch-next-action": "3.0.1",
     "mask-properties": "1.0.1",
     "simple-difference": "1.0.1"
