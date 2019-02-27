@@ -3,69 +3,60 @@ import { dynamicMiddleware } from "dispatch-next-action"
 import { mask } from "mask-properties"
 import { difference } from "simple-difference"
 
-const EXTEND_REDUCER = `${ Math.random()
-  .toString(36)
-  .substring(2, 10) }/EXTEND_REDUCER`
+export const createContext = options => {
+  const { state, reducer, middleware } = Object.assign(
+    { middleware: [], reducer: {}, state: undefined },
+    options
+  )
 
-export const createStore = ({ middleware = [], reducer, state } = {}) => {
-  const context = {
+  return {
     state,
     reducer: createTree(reducer),
+    middleware,
     subscribers: {
       root: [],
       tree: createTree(),
     },
   }
+}
 
-  const core = (_, store) => {
-    let previousState = context.state
-
-    return _ => action => {
-      context.state = context.reducer(context.state, action)
-
-      call(
-        mask(
-          context.subscribers.tree.current,
-          difference(previousState, context.state) || {}
-        ),
-        context.state,
-        store
-      )
-
-      context.subscribers.root.forEach(listener => listener(store))
-
-      previousState = context.state
-
-      return context.state
-    }
-  }
-
+export const prepareStore = context => {
   const store = Object.assign(
-    Object.create(null, {
-      middleware: {
-        get() {
-          return context.middleware.current
+    Object.create(
+      {},
+      {
+        middleware: {
+          get() {
+            return context.middleware.current
+          },
+          set() {
+            throw new Error(`Use insertMiddleware`)
+          },
         },
-      },
-      reducer: {
-        get() {
-          return context.reducer.current
+        reducer: {
+          get() {
+            return context.reducer.current
+          },
+          set() {
+            throw new Error(`Use extendReducer`)
+          },
         },
-      },
-      state: {
-        get() {
-          return context.state
+        state: {
+          get() {
+            return context.state
+          },
+          set() {
+            throw new Error(`State can only changed by dispatching an action`)
+          },
         },
-      },
-    }),
+      }
+    ),
     {
       extendReducer: reducer => {
         if (includes(context.reducer.current, reducer)) {
-          throw new Error(`Tried to extend reducer with on that already exists`)
+          throw new Error(`Reducer already exists`)
         } else {
           context.reducer.attach(reducer)
-
-          store.dispatch(EXTEND_REDUCER)
 
           return () => context.reducer.detach(reducer)
         }
@@ -112,7 +103,42 @@ export const createStore = ({ middleware = [], reducer, state } = {}) => {
     }
   )
 
-  context.middleware = dynamicMiddleware(store, ...middleware.concat(core))
+  return store
+}
+
+export const createStore = (
+  options = {},
+  context = createContext,
+  store = prepareStore
+) => {
+  context = createContext(options)
+  store = prepareStore(context)
+
+  context.middleware = dynamicMiddleware(
+    store,
+    ...context.middleware.concat((_, store) => {
+      let previousState = context.state
+
+      return _ => action => {
+        context.state = context.reducer(context.state, action)
+
+        context.subscribers.root.forEach(listener => listener(store))
+
+        call(
+          mask(
+            context.subscribers.tree.current,
+            difference(previousState, context.state) || {}
+          ),
+          context.state,
+          store
+        )
+
+        previousState = context.state
+
+        return store
+      }
+    })
+  )
 
   store.dispatch = (...args) => context.middleware(...args)
 
