@@ -1,146 +1,141 @@
-import { call, create as createTree, includes } from "call-tree"
+import { call, create as tree, includes } from "call-tree"
 import { dynamicMiddleware } from "dispatch-next-action"
 import { mask } from "mask-properties"
 import { difference } from "simple-difference"
 
-export const createContext = options => {
-  const { state, reducer, middleware } = Object.assign(
-    { middleware: [], reducer: {}, state: undefined },
-    options
-  )
+export const core = (_, store) => {
+  let previousState = store.context.state
 
-  return {
-    state,
-    reducer: createTree(reducer),
-    middleware,
-    subscribers: {
-      root: [],
-      tree: createTree(),
-    },
+  return _ => action => {
+    store.context.state = store.context.reducer(store.context.state, action)
+
+    store.context.subscribers.root.forEach(listener => listener(store))
+
+    call(
+      mask(
+        store.context.subscribers.tree.current,
+        difference(previousState, store.context.state) || {}
+      ),
+      store.context.state,
+      store
+    )
+
+    previousState = store.context.state
+
+    return store.state
   }
 }
 
-export const prepareStore = context => {
-  const store = Object.assign(
+export const reducer = store =>
+  Object.assign(store, {
+    context: Object.assign(store.context, {
+      reducer: tree(),
+    }),
+    extendReducer: reducer => {
+      if (includes(store.context.reducer.current, reducer)) {
+        throw new Error(`Reducer already exists`)
+      } else {
+        store.context.reducer.attach(reducer)
+
+        return () => store.context.reducer.detach(reducer)
+      }
+    },
+  })
+
+export const middleware = store =>
+  Object.assign(store, {
+    context: Object.assign(store.context, {
+      middleware: dynamicMiddleware(store, core),
+    }),
+    insertMiddleware: (start, ...args) => {
+      if (args.length) {
+        store.context.middleware.splice(
+          typeof start === `number`
+            ? start
+            : store.context.middleware.current.findIndex(
+                ({ dispatchConsumer }) => dispatchConsumer === start
+              ),
+          0,
+          ...args
+        )
+
+        const undo = args.map(middleware => () =>
+          store.context.middleware.delete(middleware)
+        )
+
+        return undo.length > 1 ? undo : undo.pop()
+      } else {
+        store.context.middleware.unshift(start)
+
+        return () => store.context.middleware.delete(start)
+      }
+    },
+  })
+
+export const subscriptions = store =>
+  Object.assign(store, {
+    context: Object.assign(store.context, {
+      subscribers: {
+        root: [],
+        tree: tree(),
+      },
+    }),
+    subscribe: listener => {
+      if (typeof listener === `function`) {
+        store.context.subscribers.root.push(listener)
+
+        return () =>
+          store.context.subscribers.root
+            .splice(store.context.subscribers.root.findIndex(listener), 1)
+            .pop()
+      } else {
+        store.context.subscribers.tree.attach(listener)
+
+        return () => {
+          store.context.subscribers.tree.detach(listener)
+
+          return listener
+        }
+      }
+    },
+  })
+
+export const api = ({ context, extendReducer, insertMiddleware, subscribe }) =>
+  Object.assign(
     Object.create(
       {},
       {
-        middleware: {
+        state: {
           get() {
-            return context.middleware.current
-          },
-          set() {
-            throw new Error(`Use insertMiddleware`)
+            return context.state
           },
         },
         reducer: {
           get() {
             return context.reducer.current
           },
-          set() {
-            throw new Error(`Use extendReducer`)
-          },
         },
-        state: {
+        middleware: {
           get() {
-            return context.state
-          },
-          set() {
-            throw new Error(`State can only changed by dispatching an action`)
+            return context.middleware.current
           },
         },
       }
     ),
     {
-      extendReducer: reducer => {
-        if (includes(context.reducer.current, reducer)) {
-          throw new Error(`Reducer already exists`)
-        } else {
-          context.reducer.attach(reducer)
-
-          return () => context.reducer.detach(reducer)
-        }
-      },
-      insertMiddleware: (start, ...args) => {
-        if (args.length) {
-          context.middleware.splice(
-            typeof start === `number`
-              ? start
-              : context.middleware.current.findIndex(
-                  ({ dispatchConsumer }) => dispatchConsumer === start
-                ),
-            0,
-            ...args
-          )
-
-          const undo = args.map(x => () => context.middleware.delete(x))
-
-          return undo.length > 1 ? undo : undo.pop()
-        } else {
-          context.middleware.unshift(start)
-
-          return () => context.middleware.delete(start)
-        }
-      },
-      subscribe: listener => {
-        if (typeof listener === `function`) {
-          context.subscribers.root.push(listener)
-
-          return () =>
-            context.subscribers.root
-              .splice(context.subscribers.root.findIndex(listener), 1)
-              .pop()
-        } else {
-          context.subscribers.tree.attach(listener)
-
-          return () => {
-            context.subscribers.tree.detach(listener)
-
-            return listener
-          }
-        }
-      },
+      dispatch: (...args) => context.middleware(...args),
+      extendReducer,
+      insertMiddleware,
+      subscribe,
     }
   )
 
-  return store
-}
+export const createStore = (initialState, ...factories) => {
+  if (!factories.length) {
+    factories = [ reducer, subscriptions, middleware, api ]
+  }
 
-export const createStore = (
-  options = {},
-  context = createContext,
-  store = prepareStore
-) => {
-  context = createContext(options)
-  store = prepareStore(context)
-
-  context.middleware = dynamicMiddleware(
-    store,
-    ...context.middleware.concat((_, store) => {
-      let previousState = context.state
-
-      return _ => action => {
-        context.state = context.reducer(context.state, action)
-
-        context.subscribers.root.forEach(listener => listener(store))
-
-        call(
-          mask(
-            context.subscribers.tree.current,
-            difference(previousState, context.state) || {}
-          ),
-          context.state,
-          store
-        )
-
-        previousState = context.state
-
-        return store
-      }
-    })
-  )
-
-  store.dispatch = (...args) => context.middleware(...args)
-
-  return store
+  return factories.reduce((store, factory) => factory(store), {
+    context: { state: initialState },
+  })
 }
