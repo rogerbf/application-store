@@ -3,27 +3,20 @@ import { dynamicMiddleware } from "dispatch-next-action"
 import { mask } from "mask-properties"
 import { difference } from "simple-difference"
 
-export const core = (_, store) => {
-  let previousState = store.context.state
+export const core = (_, store) => _ => (action, snapshot) => {
+  store.context.state = store.context.reducer(snapshot.state, action)
 
-  return _ => action => {
-    store.context.state = store.context.reducer(store.context.state, action)
+  snapshot.subscribers.root.forEach(listener => listener(store))
 
-    store.context.subscribers.root.forEach(listener => listener(store))
+  call(
+    mask(
+      snapshot.subscribers.tree.current,
+      difference(snapshot.state, store.context.state) || {}
+    ),
+    store.context.state
+  )
 
-    call(
-      mask(
-        store.context.subscribers.tree.current,
-        difference(previousState, store.context.state) || {}
-      ),
-      store.context.state,
-      store
-    )
-
-    previousState = store.context.state
-
-    return store.state
-  }
+  return store.state
 }
 
 export const reducer = store =>
@@ -38,6 +31,50 @@ export const reducer = store =>
         store.context.reducer.attach(reducer)
 
         return () => store.context.reducer.detach(reducer)
+      }
+    },
+  })
+
+export const subscriptions = store =>
+  Object.assign(store, {
+    context: Object.assign(store.context, {
+      subscribers: {
+        root: [],
+        tree: tree(),
+      },
+    }),
+    subscribe: listener => {
+      if (typeof listener === `function`) {
+        store.context.subscribers.root.splice(
+          store.context.subscribers.length,
+          0,
+          listener
+        )
+
+        let isSubscribed = true
+
+        return () => {
+          if (!isSubscribed) {
+            return void 0
+          }
+
+          isSubscribed = false
+
+          store.context.subscribers.root.splice(
+            store.context.subscribers.root.indexOf(listener),
+            1
+          )
+
+          return listener
+        }
+      } else {
+        store.context.subscribers.tree.attach(listener)
+
+        return () => {
+          store.context.subscribers.tree.detach(listener)
+
+          return listener
+        }
       }
     },
   })
@@ -72,35 +109,12 @@ export const middleware = store =>
     },
   })
 
-export const subscriptions = store =>
-  Object.assign(store, {
-    context: Object.assign(store.context, {
-      subscribers: {
-        root: [],
-        tree: tree(),
-      },
-    }),
-    subscribe: listener => {
-      if (typeof listener === `function`) {
-        store.context.subscribers.root.push(listener)
-
-        return () =>
-          store.context.subscribers.root
-            .splice(store.context.subscribers.root.findIndex(listener), 1)
-            .pop()
-      } else {
-        store.context.subscribers.tree.attach(listener)
-
-        return () => {
-          store.context.subscribers.tree.detach(listener)
-
-          return listener
-        }
-      }
-    },
-  })
-
-export const api = ({ context, extendReducer, insertMiddleware, subscribe }) =>
+export const store = ({
+  context,
+  extendReducer,
+  insertMiddleware,
+  subscribe,
+}) =>
   Object.assign(
     Object.create(
       {},
@@ -123,7 +137,14 @@ export const api = ({ context, extendReducer, insertMiddleware, subscribe }) =>
       }
     ),
     {
-      dispatch: (...args) => context.middleware(...args),
+      dispatch: action =>
+        context.middleware(action, {
+          state: context.state,
+          subscribers: {
+            root: [ ...context.subscribers.root ],
+            tree: tree(context.subscribers.tree.current),
+          },
+        }),
       extendReducer,
       insertMiddleware,
       subscribe,
@@ -132,7 +153,7 @@ export const api = ({ context, extendReducer, insertMiddleware, subscribe }) =>
 
 export const createStore = (initialState, ...factories) => {
   if (!factories.length) {
-    factories = [ reducer, subscriptions, middleware, api ]
+    factories = [ reducer, subscriptions, middleware, store ]
   }
 
   return factories.reduce((store, factory) => factory(store), {
