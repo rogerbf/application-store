@@ -1,16 +1,17 @@
-import { call, create as tree, includes } from "call-tree"
+import { call, create as callTree, includes } from "call-tree"
 import { dynamicMiddleware } from "dispatch-next-action"
+import { create as enroll } from "enroll"
 import { mask } from "mask-properties"
 import { difference } from "simple-difference"
 
 export const core = (_, store) => _ => (action, snapshot) => {
   store.context.state = store.context.reducer(snapshot.state, action)
 
-  snapshot.subscribers.root.forEach(listener => listener(store))
+  store.context.subscriptions.root.broadcast(store)
 
   call(
     mask(
-      snapshot.subscribers.tree.current,
+      store.context.subscriptions.tree.current,
       difference(snapshot.state, store.context.state) || {}
     ),
     store.context.state
@@ -22,7 +23,7 @@ export const core = (_, store) => _ => (action, snapshot) => {
 export const reducer = store =>
   Object.assign(store, {
     context: Object.assign(store.context, {
-      reducer: tree(),
+      reducer: callTree(),
     }),
     extendReducer: reducer => {
       if (includes(store.context.reducer.current, reducer)) {
@@ -38,40 +39,19 @@ export const reducer = store =>
 export const subscriptions = store =>
   Object.assign(store, {
     context: Object.assign(store.context, {
-      subscribers: {
-        root: [],
-        tree: tree(),
+      subscriptions: {
+        root: enroll(),
+        tree: callTree(),
       },
     }),
     subscribe: listener => {
       if (typeof listener === `function`) {
-        store.context.subscribers.root.splice(
-          store.context.subscribers.length,
-          0,
-          listener
-        )
-
-        let isSubscribed = true
-
-        return () => {
-          if (!isSubscribed) {
-            return void 0
-          }
-
-          isSubscribed = false
-
-          store.context.subscribers.root.splice(
-            store.context.subscribers.root.indexOf(listener),
-            1
-          )
-
-          return listener
-        }
+        return store.context.subscriptions.root.subscribe(listener)
       } else {
-        store.context.subscribers.tree.attach(listener)
+        store.context.subscriptions.tree.attach(listener)
 
         return () => {
-          store.context.subscribers.tree.detach(listener)
+          store.context.subscriptions.tree.detach(listener)
 
           return listener
         }
@@ -137,14 +117,7 @@ export const store = ({
       }
     ),
     {
-      dispatch: action =>
-        context.middleware(action, {
-          state: context.state,
-          subscribers: {
-            root: [ ...context.subscribers.root ],
-            tree: tree(context.subscribers.tree.current),
-          },
-        }),
+      dispatch: action => context.middleware(action, { state: context.state }),
       extendReducer,
       insertMiddleware,
       subscribe,
