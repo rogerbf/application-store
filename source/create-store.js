@@ -1,6 +1,6 @@
-import { call, create as callTree, includes } from "call-tree"
+import { includes, create as callTree } from "call-tree"
 import { dynamicMiddleware } from "dispatch-next-action"
-import { create as enroll } from "enroll"
+import { root, tree } from "enroll"
 import { mask } from "mask-properties"
 import { difference } from "simple-difference"
 
@@ -9,13 +9,11 @@ export const core = (_, store) => _ => (action, snapshot) => {
 
   store.context.subscriptions.root.broadcast(store)
 
-  call(
-    mask(
-      store.context.subscriptions.tree.current,
-      difference(snapshot.state, store.context.state) || {}
-    ),
-    store.context.state
+  const broadcast = store.context.subscriptions.tree.prepare(tree =>
+    mask(tree, difference(snapshot.state, store.context.state) || {})
   )
+
+  broadcast(store.context.state)
 
   return store.state
 }
@@ -40,21 +38,15 @@ export const subscriptions = store =>
   Object.assign(store, {
     context: Object.assign(store.context, {
       subscriptions: {
-        root: enroll(),
-        tree: callTree(),
+        root: root(),
+        tree: tree(),
       },
     }),
     subscribe: listener => {
       if (typeof listener === `function`) {
         return store.context.subscriptions.root.subscribe(listener)
       } else {
-        store.context.subscriptions.tree.attach(listener)
-
-        return () => {
-          store.context.subscriptions.tree.detach(listener)
-
-          return listener
-        }
+        return store.context.subscriptions.tree.subscribe(listener)
       }
     },
   })
