@@ -1,6 +1,6 @@
 {
   "name": "application-store",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "description": "store with dynamic middleware and reducer",
   "main": "build/application-store.cjs.js",
   "module": "build/application-store.esm.js",
@@ -25,9 +25,9 @@
     "@babel/core": "7.3.4",
     "@babel/plugin-transform-modules-commonjs": "7.2.0",
     "@babel/preset-env": "7.3.4",
-    "babel-jest": "24.3.1",
+    "babel-jest": "24.5.0",
     "eslint": "5.15.1",
-    "jest": "24.3.1",
+    "jest": "24.5.0",
     "rimraf": "2.6.3",
     "rollup": "1.6.0",
     "rollup-plugin-babel": "4.3.2",
@@ -38,9 +38,9 @@
     "test": "tests"
   },
   "dependencies": {
-    "call-tree": "1.2.0",
+    "call-tree": "2.0.0",
     "dispatch-next-action": "3.0.1",
-    "enroll": "3.0.0",
+    "enroll": "3.1.0",
     "mask-properties": "1.0.1",
     "simple-difference": "1.0.1"
   },
