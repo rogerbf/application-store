@@ -10,10 +10,10 @@ const store = createStore()
 
 ### `.state`
 
-### `.reducer`
-
 ### `.middleware`
 
 ### `.dispatch([...args])`
 
 ### `.subscribe(listener)`
+
+### `.extendReducer(reducer)`
