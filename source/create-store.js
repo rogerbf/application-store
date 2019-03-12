@@ -1,10 +1,10 @@
-import { includes, create as callTree } from "call-tree"
+import { create as createTree } from "call-tree"
 import { dynamicMiddleware } from "dispatch-next-action"
-import { root, tree } from "enroll"
+import { root } from "enroll"
 import { mask } from "mask-properties"
 import { difference } from "simple-difference"
 
-export const core = (_, store) => _ => (action, snapshot) => {
+export const coreMiddleware = (_, store) => _ => (action, snapshot) => {
   store.context.state = store.context.reducer(snapshot.state, action)
 
   store.context.subscriptions.root.broadcast(store)
@@ -18,43 +18,35 @@ export const core = (_, store) => _ => (action, snapshot) => {
   return store.state
 }
 
-export const reducer = store =>
+export const reducerFactory = store =>
   Object.assign(store, {
     context: Object.assign(store.context, {
-      reducer: callTree(),
+      reducer: createTree(),
     }),
-    extendReducer: reducer => {
-      if (includes(store.context.reducer.current, reducer)) {
-        throw new Error(`Reducer already exists`)
-      } else {
-        store.context.reducer.attach(reducer)
-
-        return () => store.context.reducer.detach(reducer)
-      }
-    },
+    extendReducer: reducer => store.context.reducer.attach(reducer),
   })
 
-export const subscriptions = store =>
+export const subscriptionsFactory = store =>
   Object.assign(store, {
     context: Object.assign(store.context, {
       subscriptions: {
         root: root(),
-        tree: tree(),
+        tree: createTree(),
       },
     }),
     subscribe: listener => {
       if (typeof listener === `function`) {
         return store.context.subscriptions.root.subscribe(listener)
       } else {
-        return store.context.subscriptions.tree.subscribe(listener)
+        return store.context.subscriptions.tree.attach(listener)
       }
     },
   })
 
-export const middleware = store =>
+export const middlewareFactory = store =>
   Object.assign(store, {
     context: Object.assign(store.context, {
-      middleware: dynamicMiddleware(store, core),
+      middleware: dynamicMiddleware(store, coreMiddleware),
     }),
     insertMiddleware: (start, ...args) => {
       if (args.length) {
@@ -81,7 +73,7 @@ export const middleware = store =>
     },
   })
 
-export const store = ({
+export const storeFactory = ({
   context,
   extendReducer,
   insertMiddleware,
@@ -94,11 +86,6 @@ export const store = ({
         state: {
           get() {
             return context.state
-          },
-        },
-        reducer: {
-          get() {
-            return context.reducer.current
           },
         },
         middleware: {
@@ -118,7 +105,12 @@ export const store = ({
 
 export const createStore = (initialState, ...factories) => {
   if (!factories.length) {
-    factories = [ reducer, subscriptions, middleware, store ]
+    factories = [
+      reducerFactory,
+      subscriptionsFactory,
+      middlewareFactory,
+      storeFactory,
+    ]
   }
 
   return factories.reduce((store, factory) => factory(store), {
