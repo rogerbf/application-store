@@ -4,13 +4,15 @@ import { root } from "enroll"
 import { mask } from "mask-properties"
 import { difference } from "simple-difference"
 
-export const coreMiddleware = (_, store) => _ => (action, snapshot) => {
-  store.context.state = store.context.reducer(snapshot.state, action)
+export const coreMiddleware = (_, store) => _ => action => {
+  const snapshot = store.context.state
+
+  store.context.state = store.context.reducer(snapshot, action)
 
   store.context.subscriptions.root.broadcast(store)
 
   const broadcast = store.context.subscriptions.tree.prepare(tree =>
-    mask(tree, difference(snapshot.state, store.context.state) || {})
+    mask(tree, difference(snapshot, store.context.state) || {})
   )
 
   broadcast(store.context.state)
@@ -64,7 +66,9 @@ export const middlewareFactory = store =>
           store.context.middleware.delete(middleware)
         )
 
-        return undo.length > 1 ? undo : undo.pop()
+        return () => {
+          undo.forEach(deleteMiddleware => deleteMiddleware())
+        }
       } else {
         store.context.middleware.unshift(start)
 
@@ -93,10 +97,15 @@ export const storeFactory = ({
             return context.middleware.current
           },
         },
+        reducer: {
+          get() {
+            return context.reducer.current
+          },
+        },
       }
     ),
     {
-      dispatch: action => context.middleware(action, { state: context.state }),
+      dispatch: action => context.middleware(action),
       extendReducer,
       insertMiddleware,
       subscribe,
