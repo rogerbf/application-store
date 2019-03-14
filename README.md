@@ -17,3 +17,5 @@ const store = createStore()
 ### `.subscribe(listener)`
 
 ### `.extendReducer(reducer)`
+
+### `.insertMiddleware(middleware)`
