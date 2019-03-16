@@ -1,6 +1,6 @@
 {
   "name": "application-store",
-  "version": "0.0.11",
+  "version": "0.0.12",
   "description": "store with dynamic middleware and reducer",
   "main": "build/application-store.cjs.js",
   "module": "build/application-store.esm.js",
@@ -38,7 +38,7 @@
     "test": "tests"
   },
   "dependencies": {
-    "call-tree": "2.0.0",
+    "call-tree": "2.1.0",
     "dispatch-next-action": "3.0.1",
     "enroll": "3.1.0",
     "mask-properties": "1.0.1",
