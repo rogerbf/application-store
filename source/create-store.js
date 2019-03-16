@@ -1,128 +1,89 @@
 import { create as createTree } from "call-tree"
 import { dynamicMiddleware } from "dispatch-next-action"
-import { root } from "enroll"
+import { root as enroll } from "enroll"
 import { mask } from "mask-properties"
 import { difference } from "simple-difference"
+import { createState } from "state-maker"
 
-export const coreMiddleware = (_, store) => _ => action => {
-  const snapshot = store.context.state
+export const createCore = ({ state, reducer, subscriptions }) => (
+  _,
+  store
+) => () => action => {
+  const snapshot = state.current
 
-  store.context.state = store.context.reducer(snapshot, action)
+  state(reducer(snapshot, action))
 
-  store.context.subscriptions.root.broadcast(store)
+  subscriptions.root.broadcast(store)
 
-  const broadcast = store.context.subscriptions.tree.prepare(tree =>
-    mask(tree, difference(snapshot, store.context.state) || {})
+  const broadcast = subscriptions.tree.prepare(tree =>
+    mask(tree, difference(snapshot, state.current) || {})
   )
 
-  broadcast(store.context.state)
+  broadcast(state.current, store)
 
-  return store.state
+  return store
 }
 
-export const reducerFactory = store =>
-  Object.assign(store, {
-    context: Object.assign(store.context, {
-      reducer: createTree(),
-    }),
-    extendReducer: reducer => store.context.reducer.attach(reducer),
-  })
+export const createStore = (initialState, _createCore = createCore) => {
+  const store = {}
 
-export const subscriptionsFactory = store =>
-  Object.assign(store, {
-    context: Object.assign(store.context, {
-      subscriptions: {
-        root: root(),
-        tree: createTree(),
-      },
-    }),
-    subscribe: listener => {
-      if (typeof listener === `function`) {
-        return store.context.subscriptions.root.subscribe(listener)
-      } else {
-        return store.context.subscriptions.tree.attach(listener)
-      }
-    },
-  })
+  const state = createState(initialState)
 
-export const middlewareFactory = store =>
-  Object.assign(store, {
-    context: Object.assign(store.context, {
-      middleware: dynamicMiddleware(store, coreMiddleware),
-    }),
-    insertMiddleware: (start, ...args) => {
-      if (args.length) {
-        store.context.middleware.splice(
-          typeof start === `number`
-            ? start
-            : store.context.middleware.current.findIndex(
-                ({ dispatchConsumer }) => dispatchConsumer === start
-              ),
-          0,
-          ...args
-        )
+  const reducer = createTree()
 
-        const undo = args.map(middleware => () =>
-          store.context.middleware.delete(middleware)
-        )
-
-        return () => {
-          undo.forEach(deleteMiddleware => deleteMiddleware())
-        }
-      } else {
-        store.context.middleware.unshift(start)
-
-        return () => store.context.middleware.delete(start)
-      }
-    },
-  })
-
-export const storeFactory = ({
-  context,
-  extendReducer,
-  insertMiddleware,
-  subscribe,
-}) =>
-  Object.assign(
-    Object.create(
-      {},
-      {
-        state: {
-          get() {
-            return context.state
-          },
-        },
-        middleware: {
-          get() {
-            return context.middleware.current
-          },
-        },
-        reducer: {
-          get() {
-            return context.reducer.current
-          },
-        },
-      }
-    ),
-    {
-      dispatch: action => context.middleware(action),
-      extendReducer,
-      insertMiddleware,
-      subscribe,
-    }
-  )
-
-export const createStore = (initialState, ...factories) => {
-  if (!factories.length) {
-    factories = [
-      reducerFactory,
-      subscriptionsFactory,
-      middlewareFactory,
-      storeFactory,
-    ]
+  const subscriptions = {
+    root: enroll(),
+    tree: createTree(),
   }
 
-  return factories.reduce((store, factory) => factory(store), {
-    context: { state: initialState },
-  })
+  const middleware = dynamicMiddleware(
+    store,
+    _createCore({ state, reducer, subscriptions })
+  )
+
+  store.insertMiddleware = (start, ...args) => {
+    if (args.length) {
+      middleware.splice(
+        typeof start === `number`
+          ? start
+          : middleware.current.findIndex(
+              ({ dispatchConsumer }) => dispatchConsumer === start
+            ),
+        0,
+        ...args
+      )
+
+      const undo = args.map(middleware => () => middleware.delete(middleware))
+
+      return () => {
+        undo.forEach(deleteMiddleware => deleteMiddleware())
+      }
+    } else {
+      middleware.unshift(start)
+
+      return () => middleware.delete(start)
+    }
+  }
+
+  store.extendReducer = addition => reducer.attach(addition)
+
+  store.replaceReducer = nextReducer => createTree(nextReducer)
+
+  store.subscribe = listener => {
+    if (typeof listener === `function`) {
+      return subscriptions.root.subscribe(listener)
+    } else {
+      return subscriptions.tree.attach(listener)
+    }
+  }
+
+  store.dispatch = (...args) => middleware(...args)
+
+  store.getState = () => state.current
+
+  store.getReducer = () => reducer.current
+
+  store.getMiddleware = () => middleware.current
+
+  return store
 }
