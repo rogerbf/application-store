@@ -8,14 +8,18 @@ const store = createStore()
 
 ## store api
 
-### `.state`
+### `.getState()`
 
-### `.middleware`
+### `.getReducer()`
+
+### `.getMiddleware()`
 
 ### `.dispatch([...args])`
 
 ### `.subscribe(listener)`
 
 ### `.extendReducer(reducer)`
+
+### `.replaceReducer(reducer)`
 
 ### `.insertMiddleware(middleware)`
