@@ -1,4 +1,4 @@
-import { createCore, createStore } from "./create-store"
+import { core, createStore } from "./create-store"
 import { reduxMiddleware } from "./redux-middleware"
 
-export { createStore, reduxMiddleware, createCore }
+export { createStore, reduxMiddleware, core }
