@@ -71,13 +71,10 @@ export const createStore = (initialState, createCore = core) => {
     return store
   }
 
-  store.subscribe = listener => {
-    if (typeof listener === `function`) {
-      return subscriptions.root.subscribe(listener)
-    } else {
-      return subscriptions.tree.attach(listener)
-    }
-  }
+  store.subscribe = listener =>
+    typeof listener === `function`
+      ? subscriptions.root.subscribe(listener)
+      : subscriptions.tree.attach(listener)
 
   store.dispatch = (...args) => middleware(...args)
 
