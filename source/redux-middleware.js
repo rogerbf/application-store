@@ -1,2 +1,1 @@
-export const reduxMiddleware = (middleware, store = {}) => dispatch =>
-  store.dispatch ? middleware(store) : middleware({ ...store, dispatch })
+export const reduxMiddleware = middleware => (_, store) => middleware(store)
