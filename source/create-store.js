@@ -5,28 +5,27 @@ import { mask } from "mask-properties"
 import { difference } from "simple-difference"
 import { createState } from "state-maker"
 
-export const core = ({ state, reducer, subscriptions }) => (
-  _,
-  store
-) => () => action => {
-  const snapshot = state.current
+export const core = ({ state, reducer, subscriptions }) => {
+  const core = (_, store) => () => action => {
+    const snapshot = state.current
 
-  state(reducer(snapshot, action))
+    state(reducer(snapshot, action))
 
-  subscriptions.root.broadcast(store)
+    subscriptions.root.broadcast(store)
 
-  subscriptions.tree.prepare(tree =>
-    mask(tree, difference(snapshot, state.current) || {})
-  )(state.current, store)
+    subscriptions.tree.prepare(tree =>
+      mask(tree, difference(snapshot, state.current) || {})
+    )(state.current, store)
 
-  return store
+    return store
+  }
+
+  return core
 }
 
 export const createStore = (initialState, createCore = core) => {
   const store = {}
-
   const state = createState(initialState)
-
   const reducer = createTree()
 
   const subscriptions = {
@@ -38,6 +37,18 @@ export const createStore = (initialState, createCore = core) => {
     store,
     createCore({ state, reducer, subscriptions })
   )
+
+  store.getState = () => state.current
+  store.getReducer = () => reducer.current
+  store.getMiddleware = () => middleware.current
+  store.dispatch = (...args) => middleware(...args)
+  store.replaceReducer = nextReducer => reducer.clear().attach(nextReducer)
+  store.extendReducer = additionalReducer => reducer.attach(additionalReducer)
+
+  store.subscribe = listener =>
+    typeof listener === `function`
+      ? subscriptions.root.subscribe(listener)
+      : subscriptions.tree.attach(listener)
 
   store.insertMiddleware = (start, ...args) => {
     if (args.length) {
@@ -62,27 +73,6 @@ export const createStore = (initialState, createCore = core) => {
       return () => middleware.delete(start)
     }
   }
-
-  store.extendReducer = addition => reducer.attach(addition)
-
-  store.replaceReducer = nextReducer => {
-    reducer.clear().attach(nextReducer)
-
-    return store
-  }
-
-  store.subscribe = listener =>
-    typeof listener === `function`
-      ? subscriptions.root.subscribe(listener)
-      : subscriptions.tree.attach(listener)
-
-  store.dispatch = (...args) => middleware(...args)
-
-  store.getState = () => state.current
-
-  store.getReducer = () => reducer.current
-
-  store.getMiddleware = () => middleware.current
 
   return store
 }

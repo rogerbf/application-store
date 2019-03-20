@@ -1,11 +1,11 @@
 const { createStore } = require(`../`)
 
+const nameReducer = (state = `unnamed`, action = {}) =>
+  action.type === `rename` ? action.payload : state
+
 const store = createStore()
 
-store.extendReducer({
-  name: (state = `unnamed`, action = {}) =>
-    action.type === `rename` ? action.payload : state,
-})
+store.extendReducer({ name: nameReducer })
 
 store.dispatch()
 
