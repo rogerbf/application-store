@@ -5,7 +5,7 @@ import { mask } from "mask-properties"
 import { difference } from "simple-difference"
 import { createState } from "state-maker"
 
-export const core = ({ state, reducer, subscriptions }) => {
+export const createCore = ({ state, reducer, subscriptions }) => {
   const core = (_, store) => () => action => {
     const snapshot = state.current
 
@@ -23,7 +23,7 @@ export const core = ({ state, reducer, subscriptions }) => {
   return core
 }
 
-export const createStore = (initialState, createCore = core) => {
+export const createStore = (initialState, _createCore = createCore) => {
   const store = {}
   const state = createState(initialState)
   const reducer = createTree()
@@ -35,7 +35,7 @@ export const createStore = (initialState, createCore = core) => {
 
   const middleware = dynamicMiddleware(
     store,
-    createCore({ state, reducer, subscriptions })
+    _createCore({ state, reducer, subscriptions })
   )
 
   store.getState = () => state.current
@@ -43,7 +43,12 @@ export const createStore = (initialState, createCore = core) => {
   store.getMiddleware = () => middleware.current
   store.dispatch = (...args) => middleware(...args)
   store.replaceReducer = nextReducer => reducer.clear().attach(nextReducer)
-  store.extendReducer = additionalReducer => reducer.attach(additionalReducer)
+
+  store.extendReducer = additionalReducer => {
+    if (!reducer.includes(additionalReducer)) {
+      return reducer.attach(additionalReducer)
+    }
+  }
 
   store.subscribe = listener =>
     typeof listener === `function`
