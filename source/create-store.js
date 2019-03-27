@@ -6,7 +6,7 @@ import { difference } from "simple-difference"
 import { createState } from "state-maker"
 
 export const createCore = ({ state, reducer, subscriptions }) => {
-  const core = (_, store) => () => action => {
+  const core = (_, store) => next => action => {
     const snapshot = state.current
 
     state(reducer(snapshot, action))
@@ -17,7 +17,7 @@ export const createCore = ({ state, reducer, subscriptions }) => {
       mask(tree, difference(snapshot, state.current) || {})
     )(state.current, store)
 
-    return store
+    return next(action)
   }
 
   return core
@@ -25,6 +25,7 @@ export const createCore = ({ state, reducer, subscriptions }) => {
 
 export const createStore = (initialState, _createCore = createCore) => {
   const store = {}
+
   const state = createState(initialState)
   const reducer = createTree()
 
@@ -38,10 +39,10 @@ export const createStore = (initialState, _createCore = createCore) => {
     _createCore({ state, reducer, subscriptions })
   )
 
+  store.dispatch = (...args) => middleware(...args)
   store.getState = () => state.current
   store.getReducer = () => reducer.current
   store.getMiddleware = () => middleware.current
-  store.dispatch = (...args) => middleware(...args)
   store.replaceReducer = nextReducer => reducer.clear().attach(nextReducer)
 
   store.extendReducer = additionalReducer => {
@@ -55,27 +56,29 @@ export const createStore = (initialState, _createCore = createCore) => {
       ? subscriptions.root.subscribe(listener)
       : subscriptions.tree.attach(listener)
 
-  store.insertMiddleware = (start, ...args) => {
-    if (args.length) {
-      middleware.splice(
-        typeof start === `number`
-          ? start
-          : middleware.current.findIndex(
-              ({ dispatchConsumer }) => dispatchConsumer === start
-            ),
-        0,
-        ...args
+  store.insertMiddleware = (start, ...additions) => {
+    if (typeof start === `function`) {
+      additions.unshift(start)
+      start = 0
+    }
+
+    try {
+      middleware.splice(start, 0, ...additions)
+
+      const operations = additions.map(added => () => middleware.delete(added))
+
+      return Object.assign(
+        () => {
+          operations.forEach(deleteMiddleware => deleteMiddleware())
+        },
+        { operations }
       )
-
-      const undo = args.map(middleware => () => middleware.delete(middleware))
-
-      return () => {
-        undo.forEach(deleteMiddleware => deleteMiddleware())
+    } catch (error) {
+      if (/duplicate middleware/g.test(error.message)) {
+        return
+      } else {
+        throw error
       }
-    } else {
-      middleware.unshift(start)
-
-      return () => middleware.delete(start)
     }
   }
 
