@@ -1,4 +1,5 @@
-const { createStore } = require(process.env.NODE_ENV === `development`
+const { createStore, reduxMiddleware } = require(process.env.NODE_ENV ===
+  `development`
   ? `../source/index`
   : `../`)
 
@@ -131,5 +132,105 @@ describe(`createStore`, () => {
     store.insertMiddleware(middleware)
 
     expect(store.getMiddleware()).toEqual([ middleware, expect.any(Function) ])
+  })
+
+  it(`updates state with result of reducer`, () => {
+    const store = createStore()
+    const reducer = (state = true, _) => state
+
+    store.replaceReducer({ testing: reducer })
+
+    store.dispatch()
+
+    expect(store.getState()).toEqual({ testing: true })
+  })
+
+  it(`preserves last state when reducer is removed`, () => {
+    const store = createStore()
+    const reducer = () => {}
+
+    const removeReducer = store.replaceReducer({ testing: reducer })
+    store.dispatch()
+
+    expect(store.getState()).toEqual({ testing: undefined })
+
+    removeReducer()
+
+    expect(store.getReducer()).toEqual({})
+    expect(store.getState()).toEqual({ testing: undefined })
+  })
+
+  it(`discards relevant state slice after dispatch when reducer has been removed`, () => {
+    const store = createStore()
+    const reducerA = () => {}
+    const reducerB = () => {}
+
+    const removeA = store.extendReducer({ a: reducerA })
+    store.extendReducer({ b: reducerB })
+    store.dispatch()
+
+    expect(store.getState()).toEqual({ a: undefined, b: undefined })
+
+    removeA()
+    store.dispatch()
+
+    expect(store.getState()).toEqual({ b: undefined })
+  })
+
+  it(`removes the relevant middleware`, () => {
+    const store = createStore()
+    const middleware = () => () => () => {}
+
+    const removeMiddleware = store.insertMiddleware(middleware)
+    removeMiddleware()
+
+    expect(store.getMiddleware()).toEqual([ expect.any(Function) ])
+  })
+
+  it(`rethrows error when adding erroneous middleware`, () => {
+    const store = createStore()
+    const middleware = undefined
+
+    expect(() => store.insertMiddleware(middleware)).toThrow()
+  })
+
+  it(`returns a function with an operations property when adding middleware which can be used to remove specific middleware`, () => {
+    const store = createStore()
+    const middlewareA = () => () => {}
+    const middlewareB = () => () => {}
+    const removeMiddleware = store.insertMiddleware(middlewareA, middlewareB)
+
+    expect(removeMiddleware.operations).toEqual([
+      expect.any(Function),
+      expect.any(Function),
+    ])
+
+    removeMiddleware.operations[1]()
+
+    expect(store.getMiddleware()).toEqual([ middlewareA, expect.any(Function) ])
+
+    removeMiddleware()
+
+    expect(store.getMiddleware()[0].name).toEqual(`core`)
+  })
+})
+
+describe(`reduxMiddleware`, () => {
+  it(`is a function`, () => {
+    expect(reduxMiddleware).toEqual(expect.any(Function))
+  })
+
+  it(`returns a function`, () => {
+    const middleware = jest.fn()
+
+    expect(reduxMiddleware(middleware)).toEqual(expect.any(Function))
+  })
+
+  it(`receives the store`, () => {
+    const middleware = jest.fn()
+    const store = {}
+    reduxMiddleware(middleware)(undefined, store)
+
+    expect(middleware).toHaveBeenCalledWith(store)
   })
 })
