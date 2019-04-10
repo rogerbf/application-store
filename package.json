@@ -1,7 +1,7 @@
 {
   "name": "application-store",
-  "version": "0.0.17",
-  "description": "store with dynamic middleware and reducer",
+  "version": "0.0.18",
+  "description": "a store with dynamic middleware and reducers",
   "main": "build/application-store.cjs.js",
   "module": "build/application-store.esm.js",
   "browser": "build/application-store.umd.js",
@@ -29,17 +29,17 @@
     "eslint": "5.16.0",
     "jest": "24.7.1",
     "rimraf": "2.6.3",
-    "rollup": "1.9.0",
+    "rollup": "1.9.3",
     "rollup-plugin-babel": "4.3.2",
     "rollup-plugin-commonjs": "9.3.4",
-    "rollup-plugin-node-resolve": "4.2.1"
+    "rollup-plugin-node-resolve": "4.2.2"
   },
   "directories": {
     "test": "tests"
   },
   "dependencies": {
     "call-tree": "2.2.0",
-    "dispatch-next-action": "3.0.1",
+    "dispatch-next-action": "3.0.2",
     "enroll": "3.1.0",
     "mask-properties": "1.0.1",
     "simple-difference": "1.0.1",
