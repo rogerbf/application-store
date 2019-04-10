@@ -36,7 +36,7 @@ export const createStore = (initialState, enhancer = createCore) => {
     }
 
     try {
-      middleware.splice(start, 0, ...additions)
+      middleware.splice(start, ...additions)
 
       const operations = additions.map(added => () => middleware.delete(added))
 
@@ -60,7 +60,5 @@ export const createStore = (initialState, enhancer = createCore) => {
       ? subscriptions.root.subscribe(listener)
       : subscriptions.tree.attach(listener)
 
-  return enhancer
-    ? enhancer({ store, state, reducer, middleware, subscriptions })
-    : store
+  return enhancer({ store, state, reducer, middleware, subscriptions })
 }
