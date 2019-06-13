@@ -72,7 +72,7 @@ describe(`createStore`, () => {
     store.replaceReducer({ a: reducer })
     store.dispatch(action)
 
-    expect(reducer.mock.calls[0]).toEqual([ undefined, action ])
+    expect(reducer.mock.calls[0]).toEqual([undefined, action])
   })
 
   it(`doesn't add the same reducer more than once`, () => {
@@ -87,7 +87,7 @@ describe(`createStore`, () => {
 
   it(`notifies subscribers`, () => {
     const store = createStore()
-    const reducer = (state = `testing`, action = {}) => state
+    const reducer = (state = `testing`) => state
     const rootSubscriber = jest.fn()
     const testingSubscriber = jest.fn()
 
@@ -96,14 +96,14 @@ describe(`createStore`, () => {
     store.subscribe({ testing: testingSubscriber })
     store.dispatch()
 
-    expect(rootSubscriber.mock.calls[0]).toEqual([ store ])
-    expect(testingSubscriber.mock.calls[0]).toEqual([ `testing`, store ])
+    expect(rootSubscriber.mock.calls[0]).toEqual([store])
+    expect(testingSubscriber.mock.calls[0]).toEqual([`testing`, store])
   })
 
   it(`returns the current middleware`, () => {
     const store = createStore()
 
-    expect(store.getMiddleware()).toEqual([ expect.any(Function) ])
+    expect(store.getMiddleware()).toEqual([expect.any(Function)])
   })
 
   it(`adds middleware`, () => {
@@ -112,7 +112,7 @@ describe(`createStore`, () => {
 
     store.insertMiddleware(middleware)
 
-    expect(store.getMiddleware()).toEqual([ middleware, expect.any(Function) ])
+    expect(store.getMiddleware()).toEqual([middleware, expect.any(Function)])
   })
 
   it(`adds middleware as last in chain`, () => {
@@ -121,7 +121,7 @@ describe(`createStore`, () => {
 
     store.insertMiddleware(1, middleware)
 
-    expect(store.getMiddleware()).toEqual([ expect.any(Function), middleware ])
+    expect(store.getMiddleware()).toEqual([expect.any(Function), middleware])
   })
 
   it(`doesn't add the same middleware more than once`, () => {
@@ -131,12 +131,12 @@ describe(`createStore`, () => {
     store.insertMiddleware(middleware)
     store.insertMiddleware(middleware)
 
-    expect(store.getMiddleware()).toEqual([ middleware, expect.any(Function) ])
+    expect(store.getMiddleware()).toEqual([middleware, expect.any(Function)])
   })
 
   it(`updates state with result of reducer`, () => {
     const store = createStore()
-    const reducer = (state = true, _) => state
+    const reducer = (state = true) => state
 
     store.replaceReducer({ testing: reducer })
 
@@ -184,7 +184,7 @@ describe(`createStore`, () => {
     const removeMiddleware = store.insertMiddleware(middleware)
     removeMiddleware()
 
-    expect(store.getMiddleware()).toEqual([ expect.any(Function) ])
+    expect(store.getMiddleware()).toEqual([expect.any(Function)])
   })
 
   it(`rethrows error when adding erroneous middleware`, () => {
@@ -207,7 +207,7 @@ describe(`createStore`, () => {
 
     removeMiddleware.operations[1]()
 
-    expect(store.getMiddleware()).toEqual([ middlewareA, expect.any(Function) ])
+    expect(store.getMiddleware()).toEqual([middlewareA, expect.any(Function)])
 
     removeMiddleware()
 

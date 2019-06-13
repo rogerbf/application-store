@@ -10,3 +10,7 @@ store.extendReducer({ name: nameReducer })
 store.dispatch()
 
 const rename = payload => store.dispatch({ type: `rename`, payload })
+
+console.log(store.getState())
+rename(`Sunday`)
+console.log(store.getState())

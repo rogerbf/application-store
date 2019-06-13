@@ -14,7 +14,7 @@ const browsers = {
     resolve(),
     commonjs(),
     babel({
-      exclude: [ `node_modules/**` ],
+      exclude: [`node_modules/**`],
     }),
   ],
 }
@@ -28,9 +28,9 @@ const nodeAndBundlers = {
   ],
   plugins: [
     babel({
-      exclude: [ `node_modules/**` ],
+      exclude: [`node_modules/**`],
     }),
   ],
 }
 
-export default [ browsers, nodeAndBundlers ]
+export default [browsers, nodeAndBundlers]
