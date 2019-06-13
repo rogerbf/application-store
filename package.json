@@ -1,6 +1,6 @@
 {
   "name": "application-store",
-  "version": "0.0.18",
+  "version": "0.0.19",
   "description": "a store with dynamic middleware and reducers",
   "main": "build/application-store.cjs.js",
   "module": "build/application-store.esm.js",
