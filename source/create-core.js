@@ -8,19 +8,33 @@ export const createCore = ({
   middleware,
   subscriptions,
 }) => {
-  const core = (_, store) => next => action => {
+  const notifySubscribers = (snapshot, state) => {
+    subscriptions.root.broadcast(store)
+
+    const prunedTree = subscriptions.tree.prepare(tree =>
+      mask(tree, difference(snapshot, state).diff || {})
+    )
+
+    prunedTree(state, store)
+  }
+
+  const updateState = action => {
     const snapshot = state.current
 
     state(reducer(snapshot, action))
 
-    subscriptions.root.broadcast(store)
+    notifySubscribers(snapshot, state.current)
 
-    subscriptions.tree.prepare(tree =>
-      mask(tree, difference(snapshot, state.current) || {})
-    )(state.current, store)
-
-    return next(action)
+    return action
   }
+
+  store.events.subscribe(event => {
+    if (event.type === "replaceReducer" || event.type === "extendReducer") {
+      updateState()
+    }
+  })
+
+  const core = () => next => action => next(updateState(action))
 
   middleware.push(core)
 

@@ -1,18 +1,18 @@
-import { create as createCallTree } from "call-tree"
+import { create as tree } from "call-tree"
 import { dynamicMiddleware } from "dispatch-next-action"
-import { root as createRootSubscriptions } from "enroll"
+import { root as channel } from "enroll"
 import { createState } from "state-maker"
 import { createCore } from "./create-core"
 
 export const createStore = (initialState, enhancer = createCore) => {
   const store = {}
   const state = createState(initialState)
-  const reducer = createCallTree()
+  const reducer = tree()
   const middleware = dynamicMiddleware(store)
 
   const subscriptions = {
-    root: createRootSubscriptions(),
-    tree: createCallTree(),
+    root: channel(),
+    tree: tree(),
   }
 
   store.dispatch = (...args) => middleware(...args)
@@ -21,31 +21,44 @@ export const createStore = (initialState, enhancer = createCore) => {
   store.getReducer = () => reducer.current
   store.getMiddleware = () => middleware.current
 
-  store.replaceReducer = nextReducer => reducer.clear().attach(nextReducer)
+  store.events = channel()
+
+  store.replaceReducer = nextReducer => {
+    const removeReducer = reducer.clear().attach(nextReducer)
+
+    store.events.broadcast({
+      type: "replaceReducer",
+      nextReducer,
+      removeReducer,
+    })
+
+    return removeReducer
+  }
 
   store.extendReducer = additionalReducer => {
     if (!reducer.includes(additionalReducer)) {
-      return reducer.attach(additionalReducer)
+      const removeReducer = reducer.attach(additionalReducer)
+
+      store.events.broadcast({
+        type: "extendReducer",
+        additionalReducer,
+        removeReducer,
+      })
+
+      return removeReducer
     }
   }
 
-  store.insertMiddleware = (start, ...additions) => {
+  store.insertMiddleware = (start, ...additionalMiddleware) => {
     if (typeof start === `function`) {
-      additions.unshift(start)
+      additionalMiddleware.unshift(start)
       start = 0
     }
 
     try {
-      middleware.splice(start, ...additions)
+      middleware.splice(start, ...additionalMiddleware)
 
-      const operations = additions.map(added => () => middleware.delete(added))
-
-      return Object.assign(
-        () => {
-          operations.forEach(deleteMiddleware => deleteMiddleware())
-        },
-        { operations }
-      )
+      return additionalMiddleware.map(added => () => middleware.delete(added))
     } catch (error) {
       if (/duplicate middleware/g.test(error.message)) {
         return

@@ -69,10 +69,18 @@ describe(`createStore`, () => {
     const action = { type: `test` }
     const reducer = jest.fn()
 
+    expect(reducer.mock.calls).toEqual([])
+
     store.replaceReducer({ a: reducer })
+
+    expect(reducer.mock.calls).toEqual([[undefined, undefined]])
+
     store.dispatch(action)
 
-    expect(reducer.mock.calls[0]).toEqual([undefined, action])
+    expect(reducer.mock.calls).toEqual([
+      [undefined, undefined],
+      [undefined, action],
+    ])
   })
 
   it(`doesn't add the same reducer more than once`, () => {
@@ -87,17 +95,32 @@ describe(`createStore`, () => {
 
   it(`notifies subscribers`, () => {
     const store = createStore()
-    const reducer = (state = `testing`) => state
+
+    const reducer = (state = `testing`, action) =>
+      action === "upper" ? state.toUpperCase() : state
+
     const rootSubscriber = jest.fn()
-    const testingSubscriber = jest.fn()
+    const treeSubscriber = jest.fn()
 
     store.replaceReducer({ testing: reducer })
+
+    expect(store.getState()).toEqual({ testing: "testing" })
+
     store.subscribe(rootSubscriber)
-    store.subscribe({ testing: testingSubscriber })
+    store.subscribe({ testing: treeSubscriber })
+
+    expect(rootSubscriber).not.toHaveBeenCalled()
+    expect(treeSubscriber).not.toHaveBeenCalled()
+
     store.dispatch()
 
-    expect(rootSubscriber.mock.calls[0]).toEqual([store])
-    expect(testingSubscriber.mock.calls[0]).toEqual([`testing`, store])
+    expect(rootSubscriber).toHaveBeenCalledWith(store)
+    expect(treeSubscriber).not.toHaveBeenCalledWith(store) // No state change
+
+    store.dispatch("upper")
+
+    expect(rootSubscriber.mock.calls).toEqual([[store], [store]])
+    expect(treeSubscriber.mock.calls).toEqual([["TESTING", store]])
   })
 
   it(`returns the current middleware`, () => {
@@ -181,7 +204,7 @@ describe(`createStore`, () => {
     const store = createStore()
     const middleware = () => () => () => {}
 
-    const removeMiddleware = store.insertMiddleware(middleware)
+    const [removeMiddleware] = store.insertMiddleware(middleware)
     removeMiddleware()
 
     expect(store.getMiddleware()).toEqual([expect.any(Function)])
@@ -196,20 +219,20 @@ describe(`createStore`, () => {
 
   it(`returns a function with an operations property when adding middleware which can be used to remove specific middleware`, () => {
     const store = createStore()
-    const middlewareA = () => () => {}
-    const middlewareB = () => () => {}
-    const removeMiddleware = store.insertMiddleware(middlewareA, middlewareB)
+    const middlewareA = () => () => () => {}
+    const middlewareB = () => () => () => {}
+    const insertedMiddleware = store.insertMiddleware(middlewareA, middlewareB)
 
-    expect(removeMiddleware.operations).toEqual([
+    expect(insertedMiddleware).toEqual([
       expect.any(Function),
       expect.any(Function),
     ])
 
-    removeMiddleware.operations[1]()
+    insertedMiddleware[1]()
 
     expect(store.getMiddleware()).toEqual([middlewareA, expect.any(Function)])
 
-    removeMiddleware()
+    insertedMiddleware.forEach(remove => remove())
 
     expect(store.getMiddleware()[0].name).toEqual(`core`)
   })
