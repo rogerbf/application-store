@@ -1,6 +1,6 @@
 {
   "name": "application-store",
-  "version": "0.0.20",
+  "version": "0.0.21",
   "description": "a store with dynamic middleware and reducers",
   "main": "build/application-store.cjs.js",
   "module": "build/application-store.esm.js",
@@ -23,17 +23,17 @@
   "author": "rogerbf <roger@bergfa.lk> (https://bergfa.lk/)",
   "license": "MIT",
   "devDependencies": {
-    "@babel/core": "7.7.2",
-    "@babel/plugin-transform-modules-commonjs": "7.7.0",
-    "@babel/preset-env": "7.7.1",
-    "babel-jest": "24.9.0",
-    "eslint": "6.6.0",
-    "eslint-config-prettier": "6.5.0",
-    "eslint-plugin-prettier": "3.1.1",
-    "jest": "24.9.0",
+    "@babel/core": "7.8.3",
+    "@babel/plugin-transform-modules-commonjs": "7.8.3",
+    "@babel/preset-env": "7.8.3",
+    "babel-jest": "25.1.0",
+    "eslint": "6.8.0",
+    "eslint-config-prettier": "6.9.0",
+    "eslint-plugin-prettier": "3.1.2",
+    "jest": "25.1.0",
     "prettier": "1.19.1",
     "rimraf": "3.0.0",
-    "rollup": "1.27.0",
+    "rollup": "1.29.1",
     "rollup-plugin-babel": "4.3.3",
     "rollup-plugin-commonjs": "10.1.0",
     "rollup-plugin-node-resolve": "5.2.0"
@@ -42,11 +42,11 @@
     "test": "tests"
   },
   "dependencies": {
-    "call-tree": "2.2.1",
+    "call-tree": "2.2.3",
     "dispatch-next-action": "5.0.0",
     "enroll": "3.2.0",
     "mask-properties": "1.0.2",
-    "simple-difference": "2.0.1",
+    "simple-difference": "2.0.2",
     "state-maker": "4.0.0"
   },
   "repository": {

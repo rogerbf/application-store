@@ -46,30 +46,24 @@ export const createStore = (initialState, enhancer = createCore) => {
       })
 
       return removeReducer
+    } else {
+      throw new Error("Reducer already exists")
     }
   }
 
   store.insertMiddleware = (start, ...additionalMiddleware) => {
-    if (typeof start === `function`) {
+    if (typeof start === "function") {
       additionalMiddleware.unshift(start)
       start = 0
     }
 
-    try {
-      middleware.splice(start, ...additionalMiddleware)
+    middleware.splice(start, ...additionalMiddleware)
 
-      return additionalMiddleware.map(added => () => middleware.delete(added))
-    } catch (error) {
-      if (/duplicate middleware/g.test(error.message)) {
-        return
-      } else {
-        throw error
-      }
-    }
+    return additionalMiddleware.map(added => () => middleware.delete(added))
   }
 
   store.subscribe = listener =>
-    typeof listener === `function`
+    typeof listener === "function"
       ? subscriptions.root.subscribe(listener)
       : subscriptions.tree.attach(listener)
 

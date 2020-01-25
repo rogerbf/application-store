@@ -83,14 +83,12 @@ describe(`createStore`, () => {
     ])
   })
 
-  it(`doesn't add the same reducer more than once`, () => {
+  it(`doesn't allow adding the same reducer more than once`, () => {
     const store = createStore()
     const reducer = () => {}
 
     store.extendReducer({ testing: reducer })
-    store.extendReducer({ testing: reducer })
-
-    expect(store.getReducer()).toEqual({ testing: reducer })
+    expect(() => store.extendReducer({ testing: reducer })).toThrow()
   })
 
   it(`notifies subscribers`, () => {
@@ -147,14 +145,12 @@ describe(`createStore`, () => {
     expect(store.getMiddleware()).toEqual([expect.any(Function), middleware])
   })
 
-  it(`doesn't add the same middleware more than once`, () => {
+  it(`doesn't allow adding the same middleware more than once`, () => {
     const store = createStore()
     const middleware = () => () => () => {}
 
     store.insertMiddleware(middleware)
-    store.insertMiddleware(middleware)
-
-    expect(store.getMiddleware()).toEqual([middleware, expect.any(Function)])
+    expect(() => store.insertMiddleware(middleware)).toThrow()
   })
 
   it(`updates state with result of reducer`, () => {
